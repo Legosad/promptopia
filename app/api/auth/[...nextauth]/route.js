@@ -4,46 +4,58 @@ import { connectToDB } from "@utils/database";
 import User from "@models/user";
 // import { signIn } from 'next-auth/react';
 
-
 const handler = NextAuth({
     providers: [
-        GoogleProvider({
-            clientId: process.env.GOOGLE_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        })
+      GoogleProvider({
+        clientId: process.env.GOOGLE_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      }),
     ],
     callbacks: {
-
-        async session({ session }) {
-            const sessionUser = await User.findOne({
-                email: session.user.email
-            })
+      // Handle user sessions
+      async session({ session }) {
+        try {
+          const sessionUser = await User.findOne({ email: session.user.email });
+          if (sessionUser) {
             session.user.id = sessionUser._id.toString();
-            return session;
-        },
-        async signIn({ profile }) {
-            try {
-                //Serverless Route ==> Lambda function ==> dynamic database connection
-                await connectToDB();
-
-                //check if user already exists
-                const userExists = await User.findOne({
-                    email: profile.email
-                })
-                //if not, create a new user
-                if (!userExists) {
-                    await User.create({
-                        email: profile.email,
-                        username: profile.name.replace(" ", "").toLowerCase(),
-                        image: profile.picture,
-                    })
-                }
-            } catch (error) {
-                console.log(error);
-                return false;
-            }
+          }
+          return session; // Ensure a valid session object is returned
+        } catch (error) {
+          console.error("Error in session callback:", error);
+          return session;
         }
-    }
-})
-
-export { handler as GET, handler as POST };
+      },
+  
+      // Handle sign-in logic
+      async signIn({ profile }) {
+        try {
+          console.log("Google profile received:", profile);
+  
+          // Connect to the database
+          await connectToDB();
+  
+          // Check if the user already exists
+          const userExists = await User.findOne({ email: profile.email });
+  
+          // If not, create a new user
+          if (!userExists) {
+            await User.create({
+              email: profile.email,
+              username: profile.name.replace(" ", "").toLowerCase(),
+              image: profile.picture,
+            });
+            console.log("New user created:", profile.email);
+          } else {
+            console.log("User already exists:", profile.email);
+          }
+  
+          return true; // Explicitly return true to proceed with sign-in
+        } catch (error) {
+          console.error("Error in signIn callback:", error);
+          return false; // Block sign-in if an error occurs
+        }
+      },
+    },
+  });
+  
+  export { handler as GET, handler as POST };
