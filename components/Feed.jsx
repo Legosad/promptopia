@@ -17,16 +17,17 @@ const Feed = () => {
   const [searchText, setSearchText] = useState("");
   const [posts, setPosts] = useState([]);
 
-  useEffect(() => {
-    const fetchPosts = async () => {
-      console.log("Feed Component fetch Posts called")
-      const response = await fetch("/api/prompt");
-      const data = await response.json();
-      setPosts(data);
-    }
-    fetchPosts();
+  useEffect(() => {  
+      const fetchPosts = async () => {
+        console.log("Feed Component fetch Posts called")
+        const response = await fetch("/api/prompt");
+        const data = await response.json();
+        setPosts(data);
+      }
+      fetchPosts();
+  }
     
-  }, [])
+  , [])
 
   useEffect(() => {
     console.log(posts);
