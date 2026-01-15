@@ -1,23 +1,28 @@
-import mongoose from "mongoose"
+import mongoose from "mongoose";
 
-let isConnected = false; //track connection status
+const MONGODB_URI = process.env.MONGODB_URI;
 
-export const connectToDB = async () => {
-    mongoose.set("strictQuery", true);
+if (!MONGODB_URI) {
+  throw new Error("Please define MONGODB_URI");
+}
 
-    if (isConnected) {
-        return;
-    }
+let cached = global.mongoose;
 
-    try {
-        await mongoose.connect(process.env.MONGODB_URI, {
-            dbName: "share-prompt",
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-        })
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
 
-        isConnected = true;
-    } catch (error) {
-        console.log(error)
-    }
+export async function connectToDB() {
+  if (cached.conn) return cached.conn;
+
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(MONGODB_URI, {
+      dbName: "share-prompt",
+      bufferCommands: false,
+      serverSelectionTimeoutMS: 20000,
+    }).then((mongoose) => mongoose);
+  }
+
+  cached.conn = await cached.promise;
+  return cached.conn;
 }

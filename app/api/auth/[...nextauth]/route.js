@@ -1,58 +1,72 @@
-import NextAuth from "@node_modules/next-auth";
+import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { connectToDB } from "@utils/database";
 import User from "@models/user";
-// import { signIn } from 'next-auth/react';
 
 const handler = NextAuth({
-    providers: [
-      GoogleProvider({
-        clientId: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      }),
-    ],
-    callbacks: {
-      // Handle user sessions
-      async session({ session }) {
-        try {
-          const sessionUser = await User.findOne({ email: session.user.email });
-          if (sessionUser) {
-            session.user.id = sessionUser._id.toString();
-          }
-          return session; // Ensure a valid session object is returned
-        } catch (error) {
-          console.error("Error in session callback:", error);
-          return session;
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    }),
+  ],
+
+  // IMPORTANT for production
+  secret: process.env.NEXTAUTH_SECRET,
+
+  callbacks: {
+    /**
+     * ✅ SIGN IN
+     * - NEVER block sign-in due to DB issues
+     * - OAuth success should always proceed
+     */
+    async signIn({ profile }) {
+      try {
+        if (!profile?.email) return true;
+
+        await connectToDB();
+
+        const existingUser = await User.findOne({ email: profile.email });
+
+        if (!existingUser) {
+          await User.create({
+            email: profile.email,
+            username: profile.name?.replace(/\s+/g, "").toLowerCase(),
+            image: profile.picture,
+          });
         }
-      },
-  
-      // Handle sign-in logic
-      async signIn({ profile }) {
-        try {
-          // Connect to the database
-          await connectToDB();
-  
-          // Check if the user already exists
-          const userExists = await User.findOne({ email: profile.email });
-  
-          // If not, create a new user
-          if (!userExists) {
-            await User.create({
-              email: profile.email,
-              username: profile.name.replace(" ", "").toLowerCase(),
-              image: profile.picture,
-            });
-          } else {
-            console.log("User already exists:", profile.email);
-          }
-  
-          return true; // Explicitly return true to proceed with sign-in
-        } catch (error) {
-          console.error("Error in signIn callback:", error);
-          return false; // Block sign-in if an error occurs
-        }
-      },
+
+        return true;
+      } catch (error) {
+        console.error("Sign-in DB error (ignored):", error);
+        return true; // 🔑 NEVER return false in production
+      }
     },
-  });
-  
-  export { handler as GET, handler as POST };
+
+    /**
+     * ✅ SESSION
+     * - Attach DB user ID to session
+     * - Safe even if DB fails
+     */
+    async session({ session }) {
+      try {
+        if (!session?.user?.email) return session;
+
+        await connectToDB();
+
+        const user = await User.findOne({ email: session.user.email });
+
+        if (user) {
+          session.user.id = user._id.toString();
+        }
+
+        return session;
+      } catch (error) {
+        console.error("Session DB error:", error);
+        return session;
+      }
+    },
+  },
+});
+
+export { handler as GET, handler as POST };
