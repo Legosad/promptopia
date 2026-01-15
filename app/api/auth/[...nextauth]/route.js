@@ -7,7 +7,7 @@ import User from "@models/user";
 const handler = NextAuth({
     providers: [
       GoogleProvider({
-        clientId: process.env.GOOGLE_ID,
+        clientId: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       }),
     ],
@@ -29,8 +29,6 @@ const handler = NextAuth({
       // Handle sign-in logic
       async signIn({ profile }) {
         try {
-          console.log("Google profile received:", profile);
-  
           // Connect to the database
           await connectToDB();
   
@@ -44,7 +42,6 @@ const handler = NextAuth({
               username: profile.name.replace(" ", "").toLowerCase(),
               image: profile.picture,
             });
-            console.log("New user created:", profile.email);
           } else {
             console.log("User already exists:", profile.email);
           }
