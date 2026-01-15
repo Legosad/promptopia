@@ -14,11 +14,8 @@ const MyProfile = () => {
       return;
     } else {
       const fetchPosts = async () => {
-        console.log("Fetch Posts called in My Profile")
-        console.log(session?.user.id)
         const response = await fetch(`/api/users/${session?.user.id}/posts`);
         const data = await response.json();
-        console.log("Data from fetch posts in My Profile", data)
         setPosts(data);
       }
       if (session?.user.id) {
@@ -26,10 +23,6 @@ const MyProfile = () => {
       }
     }
   }, [session])
-  
-  useEffect(() => {
-      console.log("Posts in My Profile =",posts)
-    },[posts])
 
     const handleEdit = (post) => {
       router.push(`/update-prompt?id=${post._id}`);
