@@ -1,79 +1,81 @@
 import { connectToDB } from "@utils/database";
 import Prompt from "@models/prompt";
-import mongoose from "mongoose";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@app/api/auth/[...nextauth]/route";
 
-// GET
-export const GET = async (request, context) => {
-    try {
-        await connectToDB();
+export const GET = async (_, { params }) => {
+  try {
+    await connectToDB();
 
-        // Explicitly await params if necessary
-        const params = await context.params;
-        
-        if (!params?.id) {
-            return new Response("Invalid request: Missing ID", { status: 400 });
-        }
+    const prompt = await Prompt.findById(params.id).populate("creator");
 
-        const prompt = await Prompt.findById(new mongoose.Types.ObjectId(params.id)).populate("creator");
-
-        if (!prompt) {
-            return new Response("Prompt not Found", { status: 404 });
-        }
-        return new Response(JSON.stringify(prompt), { status: 200 });
-    } catch (error) {
-        console.error("Error fetching prompt:", error);
-        return new Response("Failed to fetch the prompt", { status: 500 });
+    if (!prompt) {
+      return new Response("Prompt not found", { status: 404 });
     }
+
+    return new Response(JSON.stringify(prompt), { status: 200 });
+  } catch (error) {
+    console.error("GET /api/prompt/[id] error:", error);
+    return new Response("Failed to fetch the prompt", { status: 500 });
+  }
 };
 
-// PATCH
-export const PATCH = async (request, context) => {
-    try {
-        await connectToDB();
+export const PATCH = async (req, { params }) => {
+  const session = await getServerSession(authOptions);
 
-        const params = await context.params;
+  if (!session?.user?.id) {
+    return new Response("Unauthorized", { status: 401 });
+  }
 
-        if (!params?.id) {
-            return new Response("Invalid request: Missing ID", { status: 400 });
-        }
+  try {
+    await connectToDB();
 
-        const { prompt, tag } = await request.json();
-        const existingPrompt = await Prompt.findById(new mongoose.Types.ObjectId(params.id)).populate("creator");
+    const { prompt, tag } = await req.json();
+    const existingPrompt = await Prompt.findById(params.id);
 
-        if (!existingPrompt) {
-            return new Response("Prompt not Found", { status: 404 });
-        }
-
-        existingPrompt.prompt = prompt;
-        existingPrompt.tag = tag;
-
-        await existingPrompt.save();
-        return new Response(JSON.stringify(existingPrompt), { status: 200 });
-    } catch (error) {
-        console.error("Error updating prompt:", error);
-        return new Response("Failed to update the prompt", { status: 500 });
+    if (!existingPrompt) {
+      return new Response("Prompt not found", { status: 404 });
     }
+
+    if (existingPrompt.creator.toString() !== session.user.id) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    existingPrompt.prompt = prompt;
+    existingPrompt.tag = tag;
+    await existingPrompt.save();
+
+    return new Response(JSON.stringify(existingPrompt), { status: 200 });
+  } catch (error) {
+    console.error("PATCH /api/prompt/[id] error:", error);
+    return new Response("Failed to update the prompt", { status: 500 });
+  }
 };
 
-// DELETE
-export const DELETE = async (request, context) => {
-    try {
-        await connectToDB();
+export const DELETE = async (_, { params }) => {
+  const session = await getServerSession(authOptions);
 
-        const params = await context.params;
+  if (!session?.user?.id) {
+    return new Response("Unauthorized", { status: 401 });
+  }
 
-        if (!params?.id) {
-            return new Response("Invalid request: Missing ID", { status: 400 });
-        }
+  try {
+    await connectToDB();
 
-        const prompt = await Prompt.findByIdAndDelete(new mongoose.Types.ObjectId(params.id)).populate("creator");
+    const prompt = await Prompt.findById(params.id);
 
-        if (!prompt) {
-            return new Response("Prompt not Found", { status: 404 });
-        }
-        return new Response("Prompt Deleted", { status: 200 });
-    } catch (error) {
-        console.error("Error deleting prompt:", error);
-        return new Response("Failed to delete the prompt", { status: 500 });
+    if (!prompt) {
+      return new Response("Prompt not found", { status: 404 });
     }
+    if (prompt.creator.toString() !== session.user.id) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    await Prompt.findByIdAndDelete(params.id);
+
+    return new Response("Prompt deleted", { status: 200 });
+  } catch (error) {
+    console.error("DELETE /api/prompt/[id] error:", error);
+    return new Response("Failed to delete the prompt", { status: 500 });
+  }
 };

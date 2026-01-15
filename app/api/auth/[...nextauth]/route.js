@@ -3,7 +3,8 @@ import GoogleProvider from "next-auth/providers/google";
 import { connectToDB } from "@utils/database";
 import User from "@models/user";
 
-const handler = NextAuth({
+
+export const authOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
@@ -15,11 +16,6 @@ const handler = NextAuth({
   secret: process.env.NEXTAUTH_SECRET,
 
   callbacks: {
-    /**
-     * ✅ SIGN IN
-     * - NEVER block sign-in due to DB issues
-     * - OAuth success should always proceed
-     */
     async signIn({ profile }) {
       try {
         if (!profile?.email) return true;
@@ -43,11 +39,6 @@ const handler = NextAuth({
       }
     },
 
-    /**
-     * ✅ SESSION
-     * - Attach DB user ID to session
-     * - Safe even if DB fails
-     */
     async session({ session }) {
       try {
         if (!session?.user?.email) return session;
@@ -67,6 +58,8 @@ const handler = NextAuth({
       }
     },
   },
-});
+}
+
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };

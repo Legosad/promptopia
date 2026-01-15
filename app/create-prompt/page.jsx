@@ -24,7 +24,6 @@ const CreatePrompt = () => {
                 method: "POST",
                 body: JSON.stringify({
                     prompt: post.prompt,
-                    userId: session?.user.id,
                     tag: post.tag
                 })
             })
@@ -41,7 +40,7 @@ const CreatePrompt = () => {
     }
   return (
       <Form
-          type="Update"
+          type="Create"
           post={post}
           setPost={setPost}
           submitting={submitting}
