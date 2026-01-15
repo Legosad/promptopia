@@ -6,11 +6,9 @@ export const GET = async (request, context) => {
     try {
         await connectToDB();
         const params = await context.params;
-        console.log("Params recieved in API:", params)
         if (!params.id) {
             return new Response("User Id is missing", {status: 400})
         }
-        // console.log(params, params.id)
         const prompts = await Prompt.find({
             creator: new mongoose.Types.ObjectId(params.id) 
         }).populate("creator");

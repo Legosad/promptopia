@@ -23,7 +23,6 @@ const Feed = () => {
 
   useEffect(() => {  
       const fetchPosts = async () => {
-        console.log("Feed Component fetch Posts called")
         const response = await fetch("/api/prompt");
         const data = await response.json();
         setPosts(data);
@@ -33,17 +32,11 @@ const Feed = () => {
     
   , [])
 
-  useEffect(() => {
-    console.log(posts);
-  }, [posts])
-
   const router = useRouter();
   const {data: session} = useSession();
-  console.log(session)
 
   const handleSearchChange = (e) => {
     e.preventDefault();
-    // console.log("handleSearchChange e.target.value ==", e.target.value);
     setSearchText(e.target.value);
   }
   const handleTagClick = (postTag) => {
@@ -51,8 +44,6 @@ const Feed = () => {
   }
 
   const handleUsernameClick = (creator) => {
-    console.log(creator);
-    console.log(session?.user.id);
     if (creator._id.toString() === session?.user.id) {
       router.push("/profile");
       return;
@@ -68,7 +59,6 @@ const Feed = () => {
       );
     });
     setFilteredPosts(filtered);
-    // console.log("UseEffect on Search Text Change" , searchText);
   }, [searchText])
 
 
