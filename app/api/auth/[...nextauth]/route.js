@@ -3,7 +3,6 @@ import GoogleProvider from "next-auth/providers/google";
 import { connectToDB } from "@utils/database";
 import User from "@models/user";
 
-
 export const authOptions = {
   providers: [
     GoogleProvider({
@@ -12,8 +11,11 @@ export const authOptions = {
     }),
   ],
 
-  // IMPORTANT for production
   secret: process.env.NEXTAUTH_SECRET,
+
+  session: {
+    strategy: "jwt", // 👈 REQUIRED
+  },
 
   callbacks: {
     async signIn({ profile }) {
@@ -29,37 +31,40 @@ export const authOptions = {
             email: profile.email,
             username: profile.name?.replace(/\s+/g, "").toLowerCase(),
             image: profile.picture,
+            isAdmin: false,
           });
         }
 
         return true;
       } catch (error) {
         console.error("Sign-in DB error (ignored):", error);
-        return true; // 🔑 NEVER return false in production
+        return true;
       }
     },
+    async jwt({ token }) {
+      if (!token?.email) return token;
 
-    async session({ session }) {
-      try {
-        if (!session?.user?.email) return session;
+      await connectToDB();
 
-        await connectToDB();
+      const user = await User.findOne({ email: token.email });
 
-        const user = await User.findOne({ email: session.user.email });
-
-        if (user) {
-          session.user.id = user._id.toString();
-        }
-
-        return session;
-      } catch (error) {
-        console.error("Session DB error:", error);
-        return session;
+      if (user) {
+        token.id = user._id.toString();
+        token.isAdmin = user.isAdmin; // 👈 IMPORTANT
       }
+
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.id;
+        session.user.isAdmin = token.isAdmin; // 👈 IMPORTANT
+      }
+
+      return session;
     },
   },
-}
+};
 
 const handler = NextAuth(authOptions);
-
 export { handler as GET, handler as POST };
